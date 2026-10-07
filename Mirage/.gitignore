@@ -1,0 +1,13 @@
+# anchored to the root so src/data/ is still tracked
+/data/
+/checkpoints/
+__pycache__/
+*.pt
+*.pth
+*.npy
+.ipynb_checkpoints/
+kaggle.json
+.env
+.vscode/
+.idea/
+.venv/

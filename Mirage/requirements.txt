@@ -1,0 +1,14 @@
+torch
+torchvision
+timm
+scikit-learn
+pandas
+numpy
+pillow
+opencv-python
+matplotlib
+tqdm
+pyyaml
+grad-cam
+gradio
+kaggle
