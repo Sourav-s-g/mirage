@@ -11,7 +11,7 @@ We compare four model families on the same data splits:
 - LSTM: a recurrent network that reads the image as a sequence of rows or patches.
 - ViT: a vision transformer.
 
-We also use Grad-CAM to look at which image regions the CNN relies on, and a small Gradio demo to try the trained models on single images.
+We also use Grad-CAM to look at which image regions a trained CNN or ViT responds to, and a small Gradio demo to try a trained model on image pairs and single images.
 
 ## Layout
 
@@ -23,7 +23,8 @@ src/train.py
 src/evaluate.py
 src/compare.py
 src/gradcam.py
-demo/app.py
+demo/app.py          Gradio demo
+demo/make_backup.py static copy of the demo outputs
 results/       one subfolder per model, created when a model is trained
 ```
 
@@ -71,6 +72,16 @@ For testing the code without the real data, `src/data/make_dummy_data.py` writes
 ## Training and comparison
 
 `src/train.py` trains one model on the manifest (`--model cnn`, `cnn_resnet34`, `lstm`, `vit` or `vit_base`; the MLP baseline has its own script, `src/train_mlp.py`). Run the scripts from the project root as modules, for example `python -m src.train --model cnn`. `cnn` is an ImageNet-pretrained Xception from timm and `cnn_resnet34` is an ImageNet-pretrained ResNet-34; both are fine-tuned end to end with a lower learning rate for the backbone than for the new one-logit head. If the pretrained weights cannot be downloaded the code prints a warning and starts from random weights. Every epoch it evaluates on the val split, keeps the checkpoint with the best val ROC-AUC in `checkpoints/<model>/best.pt`, and logs to `results/<model>/log.csv`. At the end it evaluates that checkpoint once on the test split and writes `metrics.json`, `confusion_matrix.png` and `roc.csv` to `results/<model>/`. `--limit N` trains on a class-balanced random subset of N training images; val and test always use the full splits, and `metrics.json` records how many training images were used. `src/evaluate.py` repeats the test evaluation for an existing checkpoint, and `src/compare.py` prints a markdown table of all models in `results/` and saves `results/figures/roc_comparison.png`. `lstm` is a bidirectional two-layer LSTM that reads the image as a sequence of 16x16 raw pixel patches in row-major order, with one linear layer in front and no convolutional layers. The sequence length is (image size / 16) squared, so a smaller `--img-size` such as 128 makes it much shorter than the 224 default; the image size used is stored in `metrics.json` and shown in the comparison table. Training clips the gradient norm for this model. `vit` is an ImageNet-pretrained ViT-Small (patch size 16, 224 px) from timm and `vit_base` is the larger ViT-Base; all layers are fine-tuned with a small learning rate (we start from `--lr 2e-5`), a linear warmup over the first tenth of the training steps, and mixed precision on a GPU. The learning rate follows a cosine decay that is stepped every batch for all models. All models use the same manifest, transforms and metrics code.
+
+## Grad-CAM and demo
+
+`src/gradcam.py` has three commands that take a checkpoint (CNN or ViT): `demo` draws a figure of demo holdout images with heatmap overlays and predictions, `mean` averages the heatmaps over test images of each class (500 per class by default), and `errors` draws misclassified test images with their heatmaps. Figures go to `results/figures/`. Each heatmap is for the class the model predicted and is scaled to 0-1 per image. For example:
+
+```
+python -m src.gradcam mean --checkpoint checkpoints/cnn/best.pt
+```
+
+`demo/app.py` starts the Gradio demo for a checkpoint (`python demo/app.py --checkpoint checkpoints/cnn/best.pt`). It shows one real and one fake demo holdout image in random order, then reveals the true labels, the prediction and the Grad-CAM overlays. `demo/make_backup.py` saves the same outputs for all demo holdout images to `results/demo_backup/`, for use if the live app fails.
 
 ## Running on Google Colab
 
